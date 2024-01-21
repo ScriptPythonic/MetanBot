@@ -58,115 +58,44 @@ function generateReferralLink(referralCode) {
 }
 
 // Start command
+// Handle the /start command
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
 
+    // Predefined callbacks for the buttons
+    const letsGoCallback = 'lets_go';
+    const howToPlayCallback = 'how_to_play';
+
+    const welcomeMessage = `Welcome, ${username}!`;
+
+    // Send the welcoming image along with two buttons
+    const imageFilePath = './welcome_image.jpg'; // Replace with the path to your image file
+    const imageStream = fs.createReadStream(imageFilePath);
+
     const opts = {
+        caption: welcomeMessage,
         reply_markup: JSON.stringify({
             inline_keyboard: [
-                [{ text: '❤ Play', callback_data: 'play' }],
+                [{ text: 'Let\'s go', url: 'YOUR_LINK_HERE' }],
+                [{ text: 'How to play', callback_data: howToPlayCallback }],
             ],
         }),
     };
 
-    db.get('SELECT * FROM users WHERE chat_id = ?', [chatId], (err, row) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
-
-        if (row) {
-            const balanceMessage = `Welcome back! Your current balance: ${row.balance} coins`;
-            bot.sendMessage(chatId, balanceMessage, opts);
-        } else {
-            const referralCode = generateReferralCode(); // Generate referral code
-            db.run(
-                'INSERT OR REPLACE INTO users (chat_id, username, referral_code) VALUES (?, ?, ?)',
-                [chatId, username, referralCode],
-                (err) => {
-                    if (err) {
-                        console.error(err);
-                        return;
-                    }
-
-                    bot.sendMessage(chatId, welcomeMessage, opts);
-                }
-            );
-        }
-    });
+    bot.sendPhoto(chatId, imageStream, opts);
 });
 
 // Callback query handling
 bot.on('callback_query', (query) => {
     const chatId = query.message.chat.id;
 
-    if (query.data === 'play') {
-        // Send photo and play message for the 'play' option
-        const picturePath = './metan.jpeg';
-        const photoStream = fs.createReadStream(picturePath);
-
-        const playMessage = `It's playtime! 🎮`;
-        const playOpts = {
-            reply_markup: JSON.stringify({
-                inline_keyboard: [
-                    [
-                        {
-                            text: 'Click to Gain More Coins',
-                            callback_data: 'gain_coins',
-                        },
-                    ],
-                    [
-                        {
-                            text: 'Share to Friend',
-                            callback_data: 'share_to_friend',
-                        },
-                    ],
-                ],
-            }),
-        };
-
-        bot.sendPhoto(chatId, photoStream, { caption: playMessage, reply_markup: playOpts.reply_markup });
-    } else if (query.data === 'gain_coins') {
-        db.get('SELECT balance FROM users WHERE chat_id = ?', [chatId], (err, row) => {
-            if (err) {
-                console.error(err);
-                return;
-            }
-
-            const currentBalance = row.balance;
-
-            db.run('UPDATE users SET balance = ? WHERE chat_id = ?', [currentBalance + 1, chatId], (err) => {
-                if (err) {
-                    console.error(err);
-                    return;
-                }
-
-                const playMessage = `Your balance has been increased to ${currentBalance + 1} coins! 🎉\n\nIt's playtime! 🎮`;
-                const playOpts = {
-                    reply_markup: JSON.stringify({
-                        inline_keyboard: [
-                            [
-                                {
-                                    text: 'Click to Gain More Coins',
-                                    callback_data: 'gain_coins',
-                                },
-                            ],
-                        ],
-                    }),
-                };
-
-                bot.sendMessage(chatId, playMessage, playOpts);
-            });
-        });
-
-    } else if (query.data === 'share_to_friend') {
-        // Generate referral link using the user's chat ID
-        const referralLink = generateReferralLink(chatId); // Use chatId as the referral code for simplicity
-        const shareMessage = `📢 Share this referral link with your friends:\n\n${referralLink}\n\nFor each friend who joins, you'll receive a bonus of 100 coins! 🎉`;
-        bot.sendMessage(chatId, shareMessage, { parse_mode: 'Markdown' });
+    if (query.data === 'how_to_play') {
+        // Handle the "How to play" button callback
+        bot.sendMessage(chatId, 'To play, follow these instructions:\n' + '\fren');
     }
 });
+
 
 bot.onText(/\/profile/, (msg) => {
     const chatId = msg.chat.id;
