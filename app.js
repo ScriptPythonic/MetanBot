@@ -51,13 +51,6 @@ function generateReferralCode() {
     return Math.random().toString(36).substr(2, 8);
 }
 
-// Helper function to generate a referral link
-function generateReferralLink(referralCode) {
-    return `t.me/Metan600bot?start=${referralCode}`;
-}
-
-// Start command
-// Handle the /start command
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
@@ -83,21 +76,22 @@ bot.onText(/\/start/, (msg) => {
                     }
 
                     // Newly added user, send welcome message
-                    sendWelcomeMessage(chatId, username);
+                    sendWelcomeMessage(chatId, username, referralCode);
                 }
             );
         } else {
             // User is already in the database, send the same welcome message
-            sendWelcomeMessage(chatId, username);
+            sendWelcomeMessage(chatId, username, existingUser.referral_code);
         }
     });
 });
 
-function sendWelcomeMessage(chatId, username) {
+function sendWelcomeMessage(chatId, username, referralCode) {
     const welcomeMessage = `Welcome${username ? ', ' + username : ''}! 🎉\n\n`
         + 'You’ve joined the Moonshot Capital Squad!\n\n'
         + 'Now it\'s time to get to the top! 🏆\n\n'
-        + 'Click the  *Lets Go * button below to Start.';
+        + 'Click the  *Lets Go * button below to Start.\n\n'
+        + `Your referral code is: ${referralCode}`;
 
     // Send the welcoming image along with two buttons
     const imageFilePath = './metan.jpeg'; // Replace with the path to your image file
@@ -118,7 +112,6 @@ function sendWelcomeMessage(chatId, username) {
 
     bot.sendPhoto(chatId, imageStream, opts);
 }
-
 
 
 // Callback query handling
