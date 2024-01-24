@@ -74,45 +74,50 @@ bot.onText(/\/start/, (msg) => {
             const referralCode = generateReferralCode();
 
             db.run(
-                'INSERT INTO users (chat_id, username, referral_code) VALUES (?, ?, ?)',
-                [chatId, username, referralCode],
+                'INSERT INTO users (chat_id, username, balance, referral_code) VALUES (?, ?, ?, ?)',
+                [chatId, username, 100, referralCode],
                 (insertErr) => {
                     if (insertErr) {
                         console.error(insertErr);
-                        return;55
+                        return;
                     }
 
                     // Newly added user, send welcome message
-                    const welcomeMessage = `Congratulations, ${username}! 🎉\n\n`
-                        + 'You’ve joined the Moonshot Capital Squad!\n\n'
-                        + 'Now it\'s time to get to the top! 🏆\n\n'
-                        + 'Click the  *Lets Go * button below to Start.';
-
-                    // Send the welcoming image along with two buttons
-                    const imageFilePath = './metan.jpeg'; // Replace with the path to your image file
-                    const imageStream = fs.createReadStream(imageFilePath);
-
-                    const opts = {
-                        caption: welcomeMessage,
-                        reply_markup: JSON.stringify({
-                            inline_keyboard: [
-                                [
-                                    { text:"Let's Go",web_app: {
-                                        url: "https://metancoin.pages.dev/"
-                                      } },
-                                    { text: 'How to play', callback_data: 'how_to_play' },
-                                ],
-                            ],
-                        }),
-                        parse_mode: 'Markdown',
-                    };
-
-                    bot.sendPhoto(chatId, imageStream, opts);
+                    sendWelcomeMessage(chatId, username);
                 }
             );
-        } 
+        } else {
+            // User is already in the database, send the same welcome message
+            sendWelcomeMessage(chatId, username);
+        }
     });
 });
+
+function sendWelcomeMessage(chatId, username) {
+    const welcomeMessage = `Welcome${username ? ', ' + username : ''}! 🎉\n\n`
+        + 'You’ve joined the Moonshot Capital Squad!\n\n'
+        + 'Now it\'s time to get to the top! 🏆\n\n'
+        + 'Click the  *Lets Go * button below to Start.';
+
+    // Send the welcoming image along with two buttons
+    const imageFilePath = './metan.jpeg'; // Replace with the path to your image file
+    const imageStream = fs.createReadStream(imageFilePath);
+
+    const opts = {
+        caption: welcomeMessage,
+        reply_markup: JSON.stringify({
+            inline_keyboard: [
+                [
+                    { text: "Let's Go", web_app: { url: "https://metancoin.pages.dev/" } },
+                    { text: 'How to play', callback_data: 'how_to_play' },
+                ],
+            ],
+        }),
+        parse_mode: 'Markdown',
+    };
+
+    bot.sendPhoto(chatId, imageStream, opts);
+}
 
 
 
