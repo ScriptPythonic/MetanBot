@@ -28,7 +28,6 @@ db.run(`
   )
 `);
 
-const welcomeMessage = `Congratulations! 🎉\n\nYou’ve joined the Moonshot Capital Squad!\n\nNow it's time to get to the top! 🏆\n\nPress the "Play" button below to start.`;
 
 // Function to notify referrer when someone registers using their link
 function notifyReferrer(referringUserId, referredUsername) {
@@ -63,28 +62,59 @@ bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
 
-    // Predefined callbacks for the buttons
-    const letsGoCallback = 'lets_go';
-    const howToPlayCallback = 'how_to_play';
+    // Check if the user is already in the database
+    db.get('SELECT * FROM users WHERE chat_id = ?', [chatId], (err, existingUser) => {
+        if (err) {
+            console.error(err);
+            return;
+        }
 
-    const welcomeMessage = `Welcome, ${username}!`;
+        if (!existingUser) {
+            // User is not in the database, so add them
+            const referralCode = generateReferralCode();
 
-    // Send the welcoming image along with two buttons
-    const imageFilePath = './welcome_image.jpg'; // Replace with the path to your image file
-    const imageStream = fs.createReadStream(imageFilePath);
+            db.run(
+                'INSERT INTO users (chat_id, username, referral_code) VALUES (?, ?, ?)',
+                [chatId, username, referralCode],
+                (insertErr) => {
+                    if (insertErr) {
+                        console.error(insertErr);
+                        return;55
+                    }
 
-    const opts = {
-        caption: welcomeMessage,
-        reply_markup: JSON.stringify({
-            inline_keyboard: [
-                [{ text: 'Let\'s go', url: 'YOUR_LINK_HERE' }],
-                [{ text: 'How to play', callback_data: howToPlayCallback }],
-            ],
-        }),
-    };
+                    // Newly added user, send welcome message
+                    const welcomeMessage = `Congratulations, ${username}! 🎉\n\n`
+                        + 'You’ve joined the Moonshot Capital Squad!\n\n'
+                        + 'Now it\'s time to get to the top! 🏆\n\n'
+                        + 'Click the  *Lets Go * button below to Start.';
 
-    bot.sendPhoto(chatId, imageStream, opts);
+                    // Send the welcoming image along with two buttons
+                    const imageFilePath = './metan.jpeg'; // Replace with the path to your image file
+                    const imageStream = fs.createReadStream(imageFilePath);
+
+                    const opts = {
+                        caption: welcomeMessage,
+                        reply_markup: JSON.stringify({
+                            inline_keyboard: [
+                                [
+                                    { text:"Let's Go",web_app: {
+                                        url: "https://metancoin.pages.dev/"
+                                      } },
+                                    { text: 'How to play', callback_data: 'how_to_play' },
+                                ],
+                            ],
+                        }),
+                        parse_mode: 'Markdown',
+                    };
+
+                    bot.sendPhoto(chatId, imageStream, opts);
+                }
+            );
+        } 
+    });
 });
+
+
 
 // Callback query handling
 bot.on('callback_query', (query) => {
@@ -95,7 +125,6 @@ bot.on('callback_query', (query) => {
         bot.sendMessage(chatId, 'To play, follow these instructions:\n' + '\fren');
     }
 });
-
 
 bot.onText(/\/profile/, (msg) => {
     const chatId = msg.chat.id;
