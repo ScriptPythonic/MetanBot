@@ -1,6 +1,8 @@
+const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
+const app = express();
 
 const botToken =  '6896588206:AAE1PFmll6Lc9UTgnL0KIo7OcSeDlNxHAno';
 const bot = new TelegramBot(botToken, { polling: true });
@@ -29,6 +31,27 @@ db.run(`
 `);
 
 
+app.get('/api/user-info/:userId', (req, res) => {
+    const userId = req.params.userId;
+
+    // Asynchronous operation (e.g., querying the database) that can throw an error
+    db.get('SELECT username, balance FROM users WHERE user_id = ?', [userId], (err, row) => {
+        if (err) {
+            console.error(`Error retrieving user information for user ID ${userId}: ${err}`);
+            res.status(500).json({ error: 'Internal Server Error' });
+            return;
+        }
+
+        const userInfo = {
+            username: row ? row.username : null,
+            balance: row ? row.balance : null
+        };
+
+        res.json(userInfo);
+    });
+});
+
+
 // Function to notify referrer when someone registers using their link
 function notifyReferrer(referringUserId, referredUsername) {
     db.get('SELECT chat_id FROM users WHERE user_id = ?', [referringUserId], (err, referrerRow) => {
@@ -44,6 +67,10 @@ function notifyReferrer(referringUserId, referredUsername) {
             bot.sendMessage(referrerChatId, notificationMessage);
         }
     });
+}
+
+function generateReferralLink(referralCode) {
+    return `t.me/Metan600bot?start=${referralCode}`;
 }
 
 // Helper function to generate a referral code
@@ -192,6 +219,39 @@ bot.onText(/\/mysquad/, (msg) => {
         }
     });
 });
+
+
+bot.onText(/\/add (\w+)/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const referralCode = match[1];
+  
+    // Check if the referral code exists in the database
+    db.get('SELECT * FROM users WHERE referral_code = ?', [referralCode], (err, row) => {
+      if (err) {
+        console.error(err);
+        return;
+      }
+  
+      if (row) {
+        // Referral code exists, add it to the user's referrals
+        db.run('INSERT INTO referrals (referring_user, referred_user) VALUES (?, ?)', [chatId, row.user_id], (err) => {
+          if (err) {
+            console.error(err);
+            return;
+          }
+  
+          // Notify the referrer that someone has joined using their referral link
+          notifyReferrer(row.user_id, msg.from.username);
+  
+          // Send a success message to the user
+          bot.sendMessage(chatId, 'Successfully added referral link!');
+        });
+      } else {
+        // Referral code does not exist
+        bot.sendMessage(chatId, 'Referral code not found. Please check the code and try again.');
+      }
+    });
+  });
 
 // /fren command to get the referral link
 bot.onText(/\/fren/, (msg) => {
