@@ -151,7 +151,7 @@ function sendWelcomeMessage(chatId, username, referralCode) {
         reply_markup: JSON.stringify({
             inline_keyboard: [
                 [
-                    { text: "Let's Go", web_app: { url: `https://metancoin.pages.dev/home` } },
+                    { text: "Let's Go", web_app: { url: `https://metancoin.pages.dev/` } },
                     { text: 'How to play', callback_data: 'how_to_play' },
                 ],
             ],
