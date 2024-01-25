@@ -3,6 +3,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const app = express();
+const port = 3000;
 
 const botToken =  '6896588206:AAE1PFmll6Lc9UTgnL0KIo7OcSeDlNxHAno';
 const bot = new TelegramBot(botToken, { polling: true });
@@ -31,13 +32,13 @@ db.run(`
 `);
 
 
-app.get('/api/user-info/:userId', (req, res) => {
-    const userId = req.params.userId;
+app.get('/api/user-info/:chatId', (req, res) => {
+    const chatId = req.params.chatId;
 
     // Asynchronous operation (e.g., querying the database) that can throw an error
-    db.get('SELECT username, balance FROM users WHERE user_id = ?', [userId], (err, row) => {
+    db.get('SELECT username, balance FROM users WHERE chat_id = ?', [chatId], (err, row) => {
         if (err) {
-            console.error(`Error retrieving user information for user ID ${userId}: ${err}`);
+            console.error(`Error retrieving user information for chat ID ${chatId}: ${err}`);
             res.status(500).json({ error: 'Internal Server Error' });
             return;
         }
@@ -52,6 +53,20 @@ app.get('/api/user-info/:userId', (req, res) => {
 });
 
 
+app.get('/api/all-chat-ids', (req, res) => {
+    // Asynchronous operation (e.g., querying the database) that can throw an error
+    db.all('SELECT chat_id FROM users ORDER BY chat_id ASC', (err, rows) => {
+        if (err) {
+            console.error(`Error retrieving chat IDs: ${err}`);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        // Extract chat IDs from the rows
+        const chatIDs = rows.map(row => row.chat_id);
+
+        res.json({ chatIDs });
+    });
+});
 // Function to notify referrer when someone registers using their link
 function notifyReferrer(referringUserId, referredUsername) {
     db.get('SELECT chat_id FROM users WHERE user_id = ?', [referringUserId], (err, referrerRow) => {
@@ -114,11 +129,14 @@ bot.onText(/\/start/, (msg) => {
 });
 
 function sendWelcomeMessage(chatId, username, referralCode) {
+    
+    const referralLink = generateReferralLink(referralCode);
+
     const welcomeMessage = `Welcome${username ? ', ' + username : ''}! 🎉\n\n`
         + 'You’ve joined the Moonshot Capital Squad!\n\n'
         + 'Now it\'s time to get to the top! 🏆\n\n'
-        + 'Click the  *Lets Go * button below to Start.\n\n'
-        + `Your referral code is: ${referralCode}`;
+        + 'Click the *Let\'s Go* button below to Start.\n\n'
+        + `Your referral link is: [${referralLink}](${referralLink})`;
 
     // Send the welcoming image along with two buttons
     const imageFilePath = './metan.jpeg'; // Replace with the path to your image file
@@ -129,7 +147,7 @@ function sendWelcomeMessage(chatId, username, referralCode) {
         reply_markup: JSON.stringify({
             inline_keyboard: [
                 [
-                    { text: "Let's Go", web_app: { url: "https://metancoin.pages.dev/" } },
+                    { text: "Let's Go", web_app: { url: `https://metancoin.pages.dev/home` } },
                     { text: 'How to play', callback_data: 'how_to_play' },
                 ],
             ],
@@ -139,6 +157,7 @@ function sendWelcomeMessage(chatId, username, referralCode) {
 
     bot.sendPhoto(chatId, imageStream, opts);
 }
+
 
 
 // Callback query handling
@@ -381,9 +400,9 @@ bot.setMyCommands([
     { command: 'top15', description: 'Top 15 users by earned coins' },
     { command: 'squad15', description: 'Top 15 squads by score' },
     { command: 'fren', description: 'Get your referral link' },
-    { command: 'add', description: 'Add your friend refferal link' },
     { command: 'help', description: 'How to play' },
 ]);
 
-console.log('Bot is running...');
-
+app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+});
