@@ -5,8 +5,6 @@ const fs = require('fs');
 const app = express();
 const port = 3000;
 const cors = require('cors');
-
-
 app.use(cors());
 
 const botToken =  '6896588206:AAE1PFmll6Lc9UTgnL0KIo7OcSeDlNxHAno';
@@ -35,7 +33,6 @@ db.run(`
   )
 `);
 
-
 app.get('/api/user-info/:chatId', (req, res) => {
     const chatId = req.params.chatId;
 
@@ -56,6 +53,25 @@ app.get('/api/user-info/:chatId', (req, res) => {
     });
 });
 
+app.post('/api/update-balance/:userId', (req, res) => {
+    const userId = req.params.userId;
+    const { balance } = req.body;
+
+    // Asynchronous operation (e.g., updating the database) that can throw an error
+    db.run('UPDATE users SET balance = ? WHERE chat_id = ?', [balance, userId], function(err) {
+        if (err) {
+            console.error(`Error updating balance for user ID ${userId}: ${err}`);
+            res.status(500).json({ error: 'Internal Server Error' });
+            return;
+        }
+
+        if (this.changes > 0) {
+            res.json({ success: true, message: 'Balance updated successfully' });
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    });
+});
 
 app.get('/api/all-chat-ids', (req, res) => {
     // Asynchronous operation (e.g., querying the database) that can throw an error
