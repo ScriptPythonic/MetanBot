@@ -4,6 +4,10 @@ const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const app = express();
 const port = 3000;
+const cors = require('cors');
+
+
+app.use(cors());
 
 const botToken =  '6896588206:AAE1PFmll6Lc9UTgnL0KIo7OcSeDlNxHAno';
 const bot = new TelegramBot(botToken, { polling: true });
