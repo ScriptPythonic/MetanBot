@@ -6,6 +6,7 @@ const app = express();
 const port = 3000;
 const cors = require('cors');
 app.use(cors());
+app.use(express.json());
 
 const botToken =  '6896588206:AAE1PFmll6Lc9UTgnL0KIo7OcSeDlNxHAno';
 const bot = new TelegramBot(botToken, { polling: true });
