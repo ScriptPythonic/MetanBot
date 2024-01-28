@@ -70,22 +70,32 @@ app.get('/api/top15', (req, res) => {
   });
   
 
-app.post('/api/update-balance/:userId', (req, res) => {
+  app.post('/api/update-balance/:userId', (req, res) => {
     const userId = req.params.userId;
     const { balance } = req.body;
 
-    // Asynchronous operation (e.g., updating the database) that can throw an error
-    db.run('UPDATE users SET balance = ? WHERE chat_id = ?', [balance, userId], function(err) {
+    // Validate that userId is a valid number
+    if (isNaN(userId)) {
+        return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    // Validate that balance is a valid number
+    if (isNaN(balance)) {
+        return res.status(400).json({ error: 'Invalid balance value' });
+    }
+
+    // Asynchronous operation to update the database
+    db.run('UPDATE users SET balance = ? WHERE user_id = ?', [balance, userId], function (err) {
         if (err) {
             console.error(`Error updating balance for user ID ${userId}: ${err}`);
-            res.status(500).json({ error: 'Internal Server Error' });
-            return;
+            return res.status(500).json({ error: 'Internal Server Error' });
         }
 
+        // Check if the user was found and updated
         if (this.changes > 0) {
-            res.json({ success: true, message: 'Balance updated successfully' });
+            return res.json({ success: true, message: 'Balance updated successfully' });
         } else {
-            res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'User not found' });
         }
     });
 });
