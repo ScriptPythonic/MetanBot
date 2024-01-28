@@ -54,6 +54,22 @@ app.get('/api/user-info/:chatId', (req, res) => {
     });
 });
 
+
+app.get('/api/top15', (req, res) => {
+    const query = 'SELECT id, username, balance FROM users ORDER BY balance DESC LIMIT 15';
+  
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error(`Error retrieving top 15 users: ${err}`);
+        res.status(500).json({ error: 'Internal Server Error' });
+        return;
+      }
+  
+      res.json(rows);
+    });
+  });
+  
+
 app.post('/api/update-balance/:userId', (req, res) => {
     const userId = req.params.userId;
     const { balance } = req.body;
@@ -82,7 +98,6 @@ app.get('/api/all-chat-ids', (req, res) => {
             return res.status(500).json({ error: 'Internal Server Error' });
         }
 
-        // Extract chat IDs from the rows
         const chatIDs = rows.map(row => row.chat_id);
 
         res.json({ chatIDs });
@@ -179,8 +194,6 @@ function sendWelcomeMessage(chatId, username, referralCode) {
     bot.sendPhoto(chatId, imageStream, opts);
 }
 
-
-
 // Callback query handling
 bot.on('callback_query', (query) => {
     const chatId = query.message.chat.id;
@@ -260,7 +273,6 @@ bot.onText(/\/mysquad/, (msg) => {
     });
 });
 
-
 bot.onText(/\/add (\w+)/, (msg, match) => {
     const chatId = msg.chat.id;
     const referralCode = match[1];
@@ -318,8 +330,6 @@ bot.onText(/\/fren/, (msg) => {
         }
     });
 });
-
-
 
 bot.onText(/\/squad15/, (msg) => {
     const chatId = msg.chat.id;
@@ -381,8 +391,6 @@ bot.onText(/\/top15/, (msg) => {
         });
 });
 
-
-
 bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
 
@@ -393,7 +401,7 @@ Embark on a thrilling journey through the cosmos with Moonshot Capital Squad. He
 
 1. **Get Started 🌌**: Type /start to officially join the squad. Receive a warm welcome and your initial stash of coins. Brace yourself for the excitement!
 
-2. **Play the Game 🎮**: Engage in epic quests by hitting the "❤ Play" button. Choose options like "Click to Gain More Coins" for instant rewards or "Share to Friend" to invite fellow explorers.
+2. **Play the Game 🎮**: Engage in epic quests by hitting the "❤ Let's Go" button. Choose options like "Click to Gain More Coins" for instant rewards or "Share to Friend" to invite fellow explorers.
 
 3. **Build Your Squad 🤝**: Execute the /fren command to unveil your exclusive referral link. Share this link with friends, and for each intrepid soul who joins, you'll be rewarded with a bonus of 100 coins!
 
@@ -409,11 +417,7 @@ Ready to become a cosmic legend? The universe awaits your conquest! Soar to unim
     bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
 });
 
-
-
-// Other commands
 // ... (Add your other commands here)
-
 bot.setMyCommands([
     { command: 'start', description: 'Start' },
     { command: 'profile', description: 'Show my profile stats' },
