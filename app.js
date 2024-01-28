@@ -69,13 +69,16 @@ app.get('/api/top15', (req, res) => {
     });
 });
 
-  app.post('/api/update-balance/:userId', (req, res) => {
-    const userId = req.params.userId;
+app.post('/api/update-balance/:chatId', (req, res) => {
+    const chatId = req.params.chatId;
     const { balance } = req.body;
 
-    // Validate that userId is a valid number
-    if (isNaN(userId)) {
-        return res.status(400).json({ error: 'Invalid userId' });
+    // Debugging: Log received chatId
+    console.log("Received chatId:", chatId);
+
+    // Validate that chatId is a valid number
+    if (isNaN(chatId)) {
+        return res.status(400).json({ error: 'Invalid chatId' });
     }
 
     // Validate that balance is a valid number
@@ -84,11 +87,14 @@ app.get('/api/top15', (req, res) => {
     }
 
     // Asynchronous operation to update the database
-    db.run('UPDATE users SET balance = ? WHERE user_id = ?', [balance, userId], function (err) {
+    db.run('UPDATE users SET balance = ? WHERE chat_id = ?', [balance, chatId], function (err) {
         if (err) {
-            console.error(`Error updating balance for user ID ${userId}: ${err}`);
+            console.error(`Error updating balance for chat ID ${chatId}: ${err}`);
             return res.status(500).json({ error: 'Internal Server Error' });
         }
+
+        // Debugging: Log changes
+        console.log("Changes:", this.changes);
 
         // Check if the user was found and updated
         if (this.changes > 0) {
