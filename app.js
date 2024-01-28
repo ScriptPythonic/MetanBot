@@ -56,19 +56,18 @@ app.get('/api/user-info/:chatId', (req, res) => {
 
 
 app.get('/api/top15', (req, res) => {
-    const query = 'SELECT id, username, balance FROM users ORDER BY balance DESC LIMIT 15';
-  
+    const query = 'SELECT user_id, username, balance FROM users ORDER BY balance DESC LIMIT 15';
+
     db.all(query, [], (err, rows) => {
-      if (err) {
-        console.error(`Error retrieving top 15 users: ${err}`);
-        res.status(500).json({ error: 'Internal Server Error' });
-        return;
-      }
-  
-      res.json(rows);
+        if (err) {
+            console.error(`Error retrieving top 15 users: ${err}`);
+            res.status(500).json({ error: 'Internal Server Error' });
+            return;
+        }
+
+        res.json(rows);
     });
-  });
-  
+});
 
   app.post('/api/update-balance/:userId', (req, res) => {
     const userId = req.params.userId;
