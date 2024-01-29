@@ -1,38 +1,17 @@
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
-const sqlite3 = require('sqlite3').verbose();
-const fs = require('fs');
+const cors = require('cors');
+const { db, fs } = require('./database');
 const app = express();
 const port = 3000;
-const cors = require('cors');
 app.use(cors());
 app.use(express.json());
 
-const botToken =  '6896588206:AAE1PFmll6Lc9UTgnL0KIo7OcSeDlNxHAno';
+const botToken = '6896588206:AAE1PFmll6Lc9UTgnL0KIo7OcSeDlNxHAno';
 const bot = new TelegramBot(botToken, { polling: true });
-const db = new sqlite3.Database('users.db');
 
-// Create a users table if it doesn't exist
-db.run(`
-  CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY,
-    chat_id INTEGER UNIQUE,
-    username TEXT,
-    balance INTEGER DEFAULT 100,
-    referral_code TEXT UNIQUE
-  )
-`);
 
-// Create a referrals table if it doesn't exist
-db.run(`
-  CREATE TABLE IF NOT EXISTS referrals (
-    referral_id INTEGER PRIMARY KEY,
-    referring_user INTEGER,
-    referred_user INTEGER,
-    FOREIGN KEY(referring_user) REFERENCES users(user_id),
-    FOREIGN KEY(referred_user) REFERENCES users(user_id)
-  )
-`);
+
 
 app.get('/api/user-info/:chatId', (req, res) => {
     const chatId = req.params.chatId;
