@@ -13,3 +13,49 @@
   </div>
 </body>
 </html>
+
+
+
+bot.onText(/\/start(.+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+  const referralCode = match[1];
+
+  // Check if the referral code exists in the database
+  db.get('SELECT * FROM users WHERE referral_code = ?', [referralCode], (err, referredUser) => {
+    if (err) {
+      console.error(err);
+      return;
+    }
+
+    if (referredUser) {
+      const referringUserId = chatId;
+
+      // Check if the user is already in the referring user's squad
+      db.get('SELECT * FROM referrals WHERE referring_user_id = ? AND referred_user_id = ?', [referringUserId, referredUser.user_id], (err, existingReferral) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+
+        if (!existingReferral) {
+          // Referral link does not exist, add it to the user's squad
+          db.run('INSERT INTO referrals (referring_user_id, referred_user_id) VALUES (?, ?)', [referringUserId, referredUser.user_id], (err) => {
+            if (err) {
+              console.error(err);
+              return;
+            }
+
+            // Send a success message to the user
+            bot.sendMessage(chatId, `Successfully added ${referredUser.username} to your squad!`);
+          });
+        } else {
+          // Referral link already exists in the squad
+          bot.sendMessage(chatId, `${referredUser.username} is already in your squad.`);
+        }
+      });
+    } else {
+      // Referral code does not exist
+      bot.sendMessage(chatId, 'Referral code not found. Please check the code and try again.');
+    }
+  });
+});
