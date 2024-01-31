@@ -73,6 +73,55 @@ app.get('/api/top15', (req, res) => {
     });
 });
 
+app.post('/submitReferral', (req, res) => {
+    const { referralCode, userId } = req.body;
+
+    // Check if the referral code exists in the database
+    db.get('SELECT * FROM users WHERE referral_code = ?', [referralCode], (err, referredUser) => {
+        if (err) {
+            console.error('Error checking referral code:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+            return;
+        }
+
+        if (!referredUser) {
+            // Referral code not found
+            res.status(404).json({ error: 'Referral code not found. Please check the code and try again.' });
+            return;
+        }
+
+        // Check if the user is trying to refer themselves
+        if (userId === referredUser.user_id) {
+            res.status(400).json({ error: 'You cannot refer yourself.' });
+            return;
+        }
+
+        // Check if the user already has this referral in their squad
+        db.get('SELECT * FROM referrals WHERE referring_user_id = ? AND referred_user_id = ?', [userId, referredUser.user_id], (err, existingReferral) => {
+            if (err) {
+                console.error('Error checking existing referral:', err);
+                res.status(500).json({ error: 'Internal Server Error' });
+                return;
+            }
+
+            if (existingReferral) {
+                res.status(400).json({ error: `${referredUser.username} is already in your squad.` });
+            } else {
+                // Add the referral link to the user's squad
+                db.run('INSERT INTO referrals (referring_user_id, referred_user_id) VALUES (?, ?)', [userId, referredUser.user_id], (err) => {
+                    if (err) {
+                        console.error('Error adding referral to squad:', err);
+                        res.status(500).json({ error: 'Internal Server Error' });
+                        return;
+                    }
+
+                    res.status(200).json({ message: `Successfully added ${referredUser.username} to your squad!` });
+                });
+            }
+        });
+    });
+});
+
 app.post('/api/update-balance/:chatId', (req, res) => {
     const chatId = req.params.chatId;
     const { balance } = req.body;
@@ -270,7 +319,7 @@ bot.onText(/\/mysquad/, (msg) => {
             const userId = userRow.user_id;
 
             // Get referrals for the user
-            db.all('SELECT * FROM referrals WHERE referring_user = ?', [userId], (err, referralRows) => {
+            db.all('SELECT * FROM referrals WHERE referring_user_id = ?', [userId], (err, referralRows) => {
                 if (err) {
                     console.error(err);
                     return;
@@ -281,7 +330,8 @@ bot.onText(/\/mysquad/, (msg) => {
                     let squadMessage = `👥 *My Squad*\n\n`;
 
                     referralRows.forEach((referral) => {
-                        squadMessage += `Username: ${referral.referred_user}\n`;
+                        squadMessage += `Username: ${referral.referred_user_id}\n`;
+                        // Replace 'referred_user_id' with the actual column name for the referred user
                     });
 
                     squadMessage += `\nTotal Referrals: ${referralRows.length}`;
@@ -298,6 +348,7 @@ bot.onText(/\/mysquad/, (msg) => {
         }
     });
 });
+
 
 
 
