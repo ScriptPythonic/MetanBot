@@ -14,13 +14,13 @@ const db = new sqlite3.Database('users.db');
 
 // Create a users table if it doesn't exist
 db.run(`
-  CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
     chat_id INTEGER UNIQUE,
     username TEXT,
     balance INTEGER DEFAULT 100,
     referral_code TEXT UNIQUE
-  )
+)
 `);
 
 // Create a referrals table if it doesn't exist
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS referrals (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(referring_user_id) REFERENCES users(user_id),
     FOREIGN KEY(referred_user_id) REFERENCES users(user_id)
-  )
+)
 `);
 
 
@@ -151,6 +151,8 @@ function generateReferralCode() {
     return Math.random().toString(36).substr(2, 8);
 }
 
+// Inside the /start command handler
+// Inside the /start command handler
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
@@ -165,6 +167,7 @@ bot.onText(/\/start/, (msg) => {
         if (!existingUser) {
             // User is not in the database, so add them
             const referralCode = generateReferralCode();
+            console.log(`Generated referral code for user ${chatId}: ${referralCode}`); // Add this line
 
             db.run(
                 'INSERT INTO users (chat_id, username, balance, referral_code) VALUES (?, ?, ?, ?)',
@@ -185,6 +188,7 @@ bot.onText(/\/start/, (msg) => {
         }
     });
 });
+
 
 function sendWelcomeMessage(chatId, username, referralCode) {
     
@@ -295,75 +299,7 @@ bot.onText(/\/mysquad/, (msg) => {
     });
 });
 
-bot.onText(/\/start(.+)/, (msg, match) => {
-  const chatId = msg.chat.id;
-  const referralCode = match[1];
 
-  // Check if the referral code exists in the database
-  db.get('SELECT * FROM users WHERE referral_code = ?', [referralCode], (err, referredUser) => {
-    if (err) {
-      console.error(err);
-      return;
-    }
-
-    if (referredUser) {
-      const referringUserId = chatId;
-
-      // Check if the user is already in the referring user's squad
-      db.get('SELECT * FROM referrals WHERE referring_user_id = ? AND referred_user_id = ?', [referringUserId, referredUser.user_id], (err, existingReferral) => {
-        if (err) {
-          console.error(err);
-          return;
-        }
-
-        if (!existingReferral) {
-          // Referral link does not exist, add it to the user's squad
-          db.run('INSERT INTO referrals (referring_user_id, referred_user_id) VALUES (?, ?)', [referringUserId, referredUser.user_id], (err) => {
-            if (err) {
-              console.error(err);
-              return;
-            }
-
-            // Send a success message to the user
-            bot.sendMessage(chatId, `Successfully added ${referredUser.username} to your squad!`);
-          });
-        } else {
-          // Referral link already exists in the squad
-          bot.sendMessage(chatId, `${referredUser.username} is already in your squad.`);
-        }
-      });
-    } else {
-      // Referral code does not exist
-      bot.sendMessage(chatId, 'Referral code not found. Please check the code and try again.');
-    }
-  });
-});
-
-
-bot.onText(/\/fren/, (msg) => {
-    const chatId = msg.chat.id;
-
-    // Get the user's referral code from the database
-    db.get('SELECT referral_code FROM users WHERE chat_id = ?', [chatId], (err, row) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
-
-        if (row && row.referral_code) {
-            const referralCode = row.referral_code;
-            const referralLink = generateReferralLink(referralCode);
-
-            const referralMessage = `📢 Your Referral Link:\n\n${referralLink}\n\nFor each friend who joins, you'll receive a bonus of 100 coins! 🎉`;
-
-            bot.sendMessage(chatId, referralMessage, { parse_mode: 'Markdown' });
-        } else {
-            // User not found or referral link not available
-            const startMessage = 'User not found or referral link not available. Please use /start to register.';
-            bot.sendMessage(chatId, startMessage);
-        }
-    });
-});
 
 bot.onText(/\/squad15/, (msg) => {
     const chatId = msg.chat.id;
