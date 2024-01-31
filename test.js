@@ -115,7 +115,28 @@ app.post('/submitReferral', (req, res) => {
                         return;
                     }
 
-                    res.status(200).json({ message: `Successfully added ${referredUser.username} to your squad!` });
+                    // Award 3000 coins to both the referrer and the referred user
+                    db.run('UPDATE users SET balance = balance + 3000 WHERE user_id = ?', [userId], (err) => {
+                        if (err) {
+                            console.error('Error awarding coins to referrer:', err);
+                            res.status(500).json({ error: 'Internal Server Error' });
+                            return;
+                        }
+
+                        db.run('UPDATE users SET balance = balance + 3000 WHERE user_id = ?', [referredUser.user_id], (err) => {
+                            if (err) {
+                                console.error('Error awarding coins to referred user:', err);
+                                res.status(500).json({ error: 'Internal Server Error' });
+                                return;
+                            }
+
+                            // Notify the referred user that someone has clicked their referral link
+                            bot.sendMessage(referredUser.chat_id, `🎉 Your referral link was clicked! You and the referrer earned 3000 coins each! 🎉`)
+                                .catch(error => console.error('Error sending message:', error));
+
+                            res.status(200).json({ message: `Successfully added ${referredUser.username} to your squad!` });
+                        });
+                    });
                 });
             }
         });
