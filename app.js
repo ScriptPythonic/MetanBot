@@ -18,7 +18,7 @@ db.run(`
     user_id INTEGER PRIMARY KEY,
     chat_id INTEGER UNIQUE,
     username TEXT,
-    balance INTEGER DEFAULT 100,
+    balance INTEGER DEFAULT 3000,
     referral_code TEXT UNIQUE
   )
 `);
@@ -86,7 +86,7 @@ app.post('/api/update-balance/:chatId', (req, res) => {
         return res.status(400).json({ error: 'Invalid balance value' });
     }
 
-    // Asynchronous operation to update the database
+
     db.run('UPDATE users SET balance = ? WHERE chat_id = ?', [balance, chatId], function (err) {
         if (err) {
             console.error(`Error updating balance for chat ID ${chatId}: ${err}`);
@@ -95,7 +95,7 @@ app.post('/api/update-balance/:chatId', (req, res) => {
 
 
 
-        // Check if the user was found and updated
+
         if (this.changes > 0) {
             return res.json({ success: true, message: 'Balance updated successfully' });
         } else {
@@ -143,6 +143,116 @@ function generateReferralCode() {
     return Math.random().toString(36).substr(2, 8);
 }
 
+
+async function checkExistingReferral(chatId, referringUserId, referredUser) {
+    // Check if the referring user and referred user are the same
+    if (referringUserId === referredUser.user_id) {
+        console.error('Error: The referring user and referred user are the same.');
+        return;
+    }
+
+    // Check if the referral link already exists in the squad
+    db.get('SELECT * FROM referrals WHERE referring_user = ? AND referred_user = ?', [referringUserId, referredUser.user_id], (err, existingReferral) => {
+        if (err) {
+            console.error(err);
+            return;
+        }
+
+        if (!existingReferral) {
+            // Referral link does not exist, add it to the user's squad
+            db.run('INSERT INTO referrals (referring_user, referred_user) VALUES (?, ?)', [referringUserId, referredUser.user_id], (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+
+                // Award 3000 coins to the referring user
+                db.run('UPDATE users SET balance = balance + 3000 WHERE user_id = ?', [chatId], (err) => {
+                    if (err) {
+                        console.error('Error updating balance:', err);
+                        return;
+                    }
+
+                    console.log(`Successfully added ${referredUser.username} to ${chatId}'s squad and awarded 3000 coins!`);
+                    // Notify the referred user that they have been successfully added
+                    bot.sendMessage(referredUser.chat_id, `🎉 You have been successfully added to ${referredUser.username}'s squad!`);
+                });
+            });
+        } else {
+            // Referral link already exists in the squad
+            console.log(`${referredUser.username} is already in ${chatId}'s squad. No additional coins awarded.`);
+        }
+    });
+}
+
+
+async function getUserByChatId(chatId) {
+    return new Promise((resolve, reject) => {
+        db.get('SELECT * FROM users WHERE chat_id = ?', [chatId], (err, user) => {
+            if (err) {
+                console.error('Error retrieving user by chat ID:', err);
+                reject(err);
+            } else {
+                if (user) {
+                    console.log('Retrieved user by chat ID:', user);
+                    resolve(user);
+                } else {
+                    console.log('User not found by chat ID:', chatId);
+                    resolve({ username: 'Unknown' }); // Provide a default value or handle this case
+                }
+            }
+        });
+    });
+}
+
+
+
+
+async function getUserByReferralCode(referralCode) {
+    return new Promise((resolve, reject) => {
+        db.get('SELECT * FROM users WHERE referral_code = ?', [referralCode], (err, user) => {
+            if (err) {
+                console.error('Error retrieving user by referral code:', err);
+                reject(err);
+            } else {
+                console.log('Retrieved user by referral code:', user);
+                resolve(user);
+            }
+        });
+    });
+}
+
+
+bot.onText(/\/start(.+)/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const referralCode = match[1].trim();
+
+    getUserByReferralCode(referralCode)
+        .then((referredUser) => {
+            if (referredUser) {
+                const referringUserId = chatId;
+                console.log('User Found:', referringUserId);
+                getUserByChatId(referringUserId)  
+                    .then((referringUser) => {
+                        checkExistingReferral(chatId, referringUserId, referredUser, referringUser);
+                    })
+                    .catch((error) => {
+                        console.error('Error getting referring user:', error);
+                    });
+            } else {
+                // Referral code does not exist
+                console.log('Referral code not found:', referralCode);
+                bot.sendMessage(chatId, 'Referral code not found. Please check the code and try again.');
+            }
+        })
+        .catch((error) => {
+            console.error('Error in /start command:', error);
+        });
+});
+
+
+
+
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
     const username = msg.from.username;
@@ -160,7 +270,7 @@ bot.onText(/\/start/, (msg) => {
 
             db.run(
                 'INSERT INTO users (chat_id, username, balance, referral_code) VALUES (?, ?, ?, ?)',
-                [chatId, username, 100, referralCode],
+                [chatId, username, 3000, referralCode],
                 (insertErr) => {
                     if (insertErr) {
                         console.error(insertErr);
@@ -431,7 +541,7 @@ Ready to become a cosmic legend? The universe awaits your conquest! Soar to unim
     bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
 });
 
-// ... (Add your other commands here)
+
 bot.setMyCommands([
     { command: 'start', description: 'Start' },
     { command: 'profile', description: 'Show my profile stats' },
