@@ -23,6 +23,7 @@ db.run(`
   )
 `);
 
+
 // Create a referrals table if it doesn't exist
 db.run(`
   CREATE TABLE IF NOT EXISTS referrals (
@@ -33,6 +34,7 @@ db.run(`
     FOREIGN KEY(referred_user) REFERENCES users(user_id)
   )
 `);
+
 
 app.get('/api/user-info/:chatId', (req, res) => {
     const chatId = req.params.chatId;
@@ -53,6 +55,7 @@ app.get('/api/user-info/:chatId', (req, res) => {
         res.json(userInfo);
     });
 });
+
 
 
 app.get('/api/top15', (req, res) => {
@@ -144,47 +147,38 @@ function generateReferralCode() {
 }
 
 
-async function checkExistingReferral(chatId, referringUserId, referredUser) {
+async function checkExistingReferral(chatId, referringUserId, referredUser, bot) {
     // Check if the referring user and referred user are the same
     if (referringUserId === referredUser.user_id) {
         console.error('Error: The referring user and referred user are the same.');
         return;
     }
 
-    // Check if the referral link already exists in the squad
-    db.get('SELECT * FROM referrals WHERE referring_user = ? AND referred_user = ?', [referringUserId, referredUser.user_id], (err, existingReferral) => {
-        if (err) {
-            console.error(err);
-            return;
-        }
+    try {
+        // Check if the referral link already exists in the squad
+        const existingReferral = await db.get('SELECT * FROM referrals WHERE referring_user = ? AND referred_user = ?', [referringUserId, referredUser.user_id]);
 
-        if (!existingReferral) {
+        console.log('Query Result:', existingReferral);
+
+        if (existingReferral === undefined) {
             // Referral link does not exist, add it to the user's squad
-            db.run('INSERT INTO referrals (referring_user, referred_user) VALUES (?, ?)', [referringUserId, referredUser.user_id], (err) => {
-                if (err) {
-                    console.error(err);
-                    return;
-                }
+            await db.run('INSERT INTO referrals (referring_user, referred_user) VALUES (?, ?)', [referringUserId, referredUser.user_id]);
 
-                // Award 3000 coins to the referring user
-                db.run('UPDATE users SET balance = balance + 3000 WHERE user_id = ?', [chatId], (err) => {
-                    if (err) {
-                        console.error('Error updating balance:', err);
-                        return;
-                    }
+            // Award 3000 coins to the referring user
+            await db.run('UPDATE users SET balance = balance + 3000 WHERE user_id = ?', [chatId]);
 
-                    console.log(`Successfully added ${referredUser.username} to ${chatId}'s squad and awarded 3000 coins!`);
-                    // Notify the referred user that they have been successfully added
-                    bot.sendMessage(referredUser.chat_id, `🎉 You have been successfully added to ${referredUser.username}'s squad!`);
-                });
-            });
+            console.log(`Successfully added ${referredUser.username} to ${chatId}'s squad and awarded 3000 coins!`);
+            
+            // Notify the referring user that the referred user has been successfully added
+            bot.sendMessage(chatId, `🎉 You have successfully added ${referredUser.username} to your squad and awarded 3000 coins!`);
         } else {
             // Referral link already exists in the squad
             console.log(`${referredUser.username} is already in ${chatId}'s squad. No additional coins awarded.`);
         }
-    });
+    } catch (error) {
+        console.error('Error in checkExistingReferral:', error);
+    }
 }
-
 
 async function getUserByChatId(chatId) {
     return new Promise((resolve, reject) => {
